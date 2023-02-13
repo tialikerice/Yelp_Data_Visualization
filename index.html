@@ -1,0 +1,567 @@
+<html>
+    <style>
+        #container {
+            width: 800px;
+            height: 500px;
+            background: black;
+            margin: 0 auto;
+        }
+
+        #top_category {
+            width: 800px;
+            height: 500px;
+            background: black;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        #review_city_count {
+            width: 800px;
+            height: 500px;
+            background: black;
+            margin: 0 auto;
+        }
+
+        #time_series {
+            width: 800px;
+            height: 500px;
+            background: black;
+            margin: 0 auto;
+        }
+
+        #open_or_closed {
+            width: 800px;
+            height: 500px;
+            background: black;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .svg_top_category {
+            margin: 10px 70px;
+        }
+
+        svg {
+            margin: 10px 150px;
+        }
+
+        .time_series {
+            margin: 10px 150px;
+        }
+
+        .barchart {
+            margin: 10px 150px;
+        }
+
+        .axis path,
+        .axis line {
+            fill: none;
+            stroke: white;
+            shape-rendering: crispEdges;
+        }
+
+        .axis text {
+            font-family: 'Microsoft YaHei';
+            font-size: 12px;
+            color: white;
+        }
+
+        .gridlines line {
+            stroke: #fff;
+        }
+
+        .gridlines .domain {
+            stroke: none;
+        }
+
+        .top_header {
+            background-image: url("back.jpeg");
+            height: 300px;
+        }
+
+    </style>
+
+    <body style="background-color: black; font-family: Courier New, Courier, monospace;">
+
+        <head>
+            <script src="https://d3js.org/d3.v7.min.js"></script>
+        </head>
+        <div id="top_header" class="top_header" style="color:#fff; font-size: 20pt;">
+            <br>
+            <h1 style="color:#fff; text-align: center;"> 5100 Project 1</h1>
+            <h1 style="color:#fff; text-align: center;"> Exploration of the YELP Dataset</h1>
+            <h3 style="color:#fff; text-align: center;"> Tianchen Wang; Yun Zhou; Zhi Lin</h3>
+        </div>
+        <br>
+        <br>
+        <div id="top_category" style="margin-bottom: 100;">
+            <h2 style="color:#fff; text-align: center;">P1. Top 10 Business Categories</h2>
+            <h3 style="color:#fff;text-align: center;">Count of Business by Category</h3>
+        </div>
+        <div id="open_or_closed" style="margin-top: 300;">
+            <h2 style="color:#fff; text-align: center;">P2. Which State Has The Most Open/Closed Businesses?</h2>
+            <h3 style="color:#fff;text-align: center;">Open/Closed Business Count By State</h3>
+            <svg height="600" id="barchart" width="600"></svg>
+        </div>
+        <div id="review_city_count" style="color:#fff; font-size: 11pt;margin-top: 100;">
+            <h2 style="color:#fff; text-align: center;">P3. Which City Has The Most Reviews?</h2>
+            <h3 style="color:#fff;text-align: center;">Count of Reviews By City</h3>
+        </div>
+        <div id="time_series" style="margin-top: 200;">
+            <h2 style="color:#fff; text-align: center;">P4. Is Now A Good Time To Start A New Business?</h2>
+            <h3 style="color:#fff;text-align: center;">Post COVID-19 Pandemic</h3>
+            <svg height="400" id="time_series" width="800">
+            </svg>
+        </div>
+        <script>
+
+            // First compare the number of businesses by each category.
+            d3.json('yelp_business_10percent.json').then(
+                (data) => {
+                    let categories_string = ""
+                    for (let i = 0; i < data.length; i++) {
+                        categories_string = data[i].categories + ", " + categories_string
+                    }
+                    let categories_list = categories_string.split(',');
+                    const count = {};
+                    for (const element of categories_list) {
+                        if (count[element]) {
+                            count[element] += 1;
+                        } else {
+                            count[element] = 1;
+                        }
+                    }
+                    let items = Object.keys(count).map(function (key) {
+                        return [key, count[key]];
+                    });
+                    items.sort(function (first, second) {
+                        return second[1] - first[1];
+                    });
+
+                    // Select top 10 categories.
+                    let datas = [];
+                    for (let i = 0; i < 10; i++) {
+                        let category = {
+                            key: items[i][0],
+                            value: items[i][1]
+                        }
+                        datas.push(category);
+                    }
+
+                    let width = 800, height = 600, padding = 75
+                    let svg = d3.select("#top_category")
+                        .append("svg")
+                        .attr("width", width)
+                        .attr("height", height)
+                        .attr("class", "svg_top_category")
+
+                    let xScale = d3.scaleBand()
+                        .domain(datas.map(d => d.key))
+                        .range([padding, width - 2 * padding])
+                        .padding(0.5)
+                    let yScale = d3.scaleLinear()
+                        .domain([0, d3.max(datas, (d) => d.value)])
+                        .range([height - padding * 2, 0])
+                    let xAxis = d3.axisBottom(xScale)
+                    let yAxis = d3.axisLeft(yScale)
+
+                    const bartext = svg.append('g')
+                        .attr('id', 'bartext');
+
+                    svg.append('g')
+                        .attr('class', 'axis')
+                        .attr('transform', 'translate(0,' + (height - padding) + ')')
+                        .call(xAxis)
+                        .selectAll("text")
+                        .style("text-anchor", "end")
+                        .attr("dx", "-.8em")
+                        .attr("dy", ".15em")
+                        .attr("transform", "rotate(-45)");
+
+                    svg.append('g')
+                        .attr('class', 'axis')
+                        .attr('transform', 'translate(' + padding + ',' + padding + ')')
+                        .call(yAxis);
+
+                    let myColor = d3.scaleOrdinal()
+                        .domain(datas)
+                        .range(d3.schemeCategory10);
+
+                    let rects = svg.selectAll("rect")
+                        .data(datas)
+
+                    rects.enter()
+                        .append("rect")
+                        .attr("x", d => xScale(d.key))
+                        .attr("y", d => yScale(d.value) + padding)
+                        .attr("width", xScale.bandwidth())
+                        .attr("height", d => height - padding * 2 - yScale(d.value))
+                        .attr("fill", d => "pink")
+                        .attr("fill", d => myColor(d.value))
+                        .transition()   // Smooth append transition
+                        .duration(1000)
+                        .attr('y', d => yScale(d.value) + padding)
+                        .attr('height', d => height - padding * 2 - yScale(d.value))
+                        .on('end', function () {  // Animation when a bar is selected
+                            d3.select(this).on('mouseenter', function (event, actual, i) {
+                                d3.selectAll('.times')
+                                    .attr('opacity', 0)
+                                d3.select(this)
+                                    .transition()
+                                    .duration(300)
+                                    .attr('opacity', 0.6)
+                                    .attr('x', d => xScale(d.key))
+                                    .attr('width', xScale.bandwidth())
+                                const y = yScale(actual.value)
+                                let line = svg.append('line')
+                                    .attr('id', 'limit')
+                                    .attr('x1', 0)
+                                    .attr('y1', y + padding)
+                                    .attr('x2', width - 150)
+                                    .attr('y2', y + padding)
+                                    .attr('stroke', 'white')
+                                    .style('stroke-dasharray', ("3", "3"))
+                            })
+                                .on('mouseleave', function () {
+                                    d3.selectAll('.times')
+                                        .attr('opacity', 1)
+                                    d3.select(this)
+                                        .transition()
+                                        .duration(300)
+                                        .attr('opacity', 1)
+                                        .attr('x', d => xScale(d.key))
+                                        .attr('width', xScale.bandwidth())
+                                    svg.selectAll('#limit').remove()
+                                })
+                            rects.exit().remove()
+                            bartext2.exit().remove()
+                        })
+
+                    let bartext2 = bartext.selectAll("text")
+                        .data(datas);
+
+                    bartext2
+                        .attr('x', d => xScale(d.key) + 10)
+                        .attr('y', d => yScale(d.key) + padding - 5)
+                        .attr('text-anchor', 'middle')
+                        .text((d) => `${d.value}`)
+
+                    bartext2
+                        .enter()
+                        .append('text')
+                        .attr('class', 'text_value')
+                        .attr('x', d => xScale(d.key) + 10)
+                        .attr('y', d => yScale(d.value) + padding - 5)
+                        .attr('text-anchor', 'middle')
+                        .text(d => `${d.value}`)
+                        .attr('opacity', 0)
+                        .transition()
+                        .delay(300)
+                        .attr('opacity', 1)
+                        .style("fill", "white")
+                })
+
+            // Count the open or closed businesses by states.
+            d3.json("yelp_business_10percent.json")
+                .then((data) => {
+                    let svg_barchart = d3.select("svg#barchart");
+                    const width = svg_barchart.attr("width");
+                    const height = svg_barchart.attr("height");
+                    const margin = { top: 5, right: 10, bottom: 10, left: 50 };
+                    const chartWidth = width - margin.left - margin.right;
+                    const chartHeight = height - margin.top - margin.bottom;
+                    let operations = {}
+                    for (let i = 0; i < data.length; i++) {
+                        let state = data[i].state;
+                        if (!(state in operations)) {
+                            operations[state] = { 'is_open': 0, 'is_closed': 0 };
+                        }
+                        if (data[i].is_open == 1) {
+                            operations[state].is_open += 1;
+                        } else {
+                            operations[state].is_closed += 1;
+                        }
+                    }
+                    let json = []
+                    for (const [key, value] of Object.entries(operations)) {
+                        if (value.is_open > 10 || value.is_closed > 10) {
+                            let dict = { "state": key, "is_open": value.is_open, "is_closed": value.is_closed }
+                            json.push(dict);
+                        }
+                    }
+
+                    let maxValue = d3.max(json, d => Math.max(d.is_open, d.is_closed));
+                    let padding = 5
+                    let xScale = d3.scaleBand()
+                        .domain(json.map(data => data.state))
+                        .range([padding, chartWidth - 2 * padding])
+                        .padding(0.5)
+                    let openScale = d3.scaleLinear()
+                        .domain([0, maxValue + 10])
+                        .range([0, chartHeight / 2.0 - 30]);
+                    let closedScale = d3.scaleLinear()
+                        .domain([0, maxValue + 10])
+                        .range([0, chartHeight / 2.0]);
+
+                    let bottomAxis = d3.axisBottom(xScale)
+                        .tickSize(0)
+                    axis_position = chartHeight - 180
+                    svg_barchart.append('g')
+                        .attr('class', 'axis')
+                        .attr('transform', 'translate(0,' + axis_position + ')')
+                        .call(bottomAxis)
+                        .selectAll("text")
+                        .style("text-anchor", "end")
+                        .attr("dx", "-1em")
+                        .attr("dy", "-.5em")
+                        .attr("transform", "rotate(-90)");
+
+                    // add legend 
+                    svg_barchart.append("rect")
+                        .attr("x", 400)
+                        .attr("y", 40)
+                        .attr('width', 15)
+                        .attr('height', 5)
+                        .style("fill", "skyblue")
+
+                    svg_barchart.append("rect")
+                        .attr("x", 400)
+                        .attr("y", 60)
+                        .attr('width', 15)
+                        .attr('height', 5)
+                        .style("fill", "orange")
+
+                    svg_barchart.append("text")
+                        .attr("x", 420)
+                        .attr("y", 45)
+                        .text("open")
+                        .style("font-size", "15px")
+                        .attr("alignment-baseline", "right")
+                        .style('fill', 'skyblue')
+
+                    svg_barchart.append("text")
+                        .attr("x", 420)
+                        .attr("y", 65)
+                        .text("closed")
+                        .style("font-size", "15px")
+                        .attr("alignment-baseline", "right")
+                        .style('fill', 'orange')
+
+                    json.forEach((d, i) => {
+                        svg_barchart.append('g')
+                            .append("line")
+                            .attr("x1", xScale(d['state']))
+                            .attr("x2", xScale(d['state']))
+                            .attr("y1", chartHeight / 2)
+                            .attr("y2", chartHeight / 2 - openScale(d['is_open']))
+                            .style("stroke", "skyblue")
+                            .style("stroke-width", 10);
+                    });
+
+                    json.forEach((d, i) => {
+                        svg_barchart.append('g')
+                            .append("line")
+                            .attr("x1", xScale(d['state']))
+                            .attr("x2", xScale(d['state']))
+                            .attr("y1", chartHeight / 2)
+                            .attr("y2", chartHeight / 2 + closedScale(d['is_closed']))
+                            .style("stroke", "orange")
+                            .style("stroke-width", 10);
+                    });
+                });
+
+            // Find out which city has the most reviews.
+            d3.json('./yelp_business_10percent.json').then(
+                (data) => {
+                    let obj = []
+                    for (let i = 0; i < data.length; i++) {
+                        obj.push({
+                            name: data[i].city,
+                            value: data[i].review_count
+                        });
+                    }
+                    let holder = {};
+
+                    obj.forEach(function (d) {
+                        if (holder.hasOwnProperty(d.name)) {
+                            holder[d.name] = holder[d.name] + d.value;
+                        } else {
+                            holder[d.name] = d.value;
+                        }
+                    });
+                    let obj2 = [];
+                    for (let prop in holder) {
+                        obj2.push({ name: prop, value: holder[prop] });
+                    }
+                    let items = []
+                    for (let i = 0; i < obj2.length; i++) {
+                        items.push([obj2[i].name, obj2[i].value])
+                    }
+                    items.sort(function (first, second) {
+                        return second[1] - first[1];
+                    });
+
+                    // Select top 10 cities.
+                    let datas = [];
+                    for (let i = 0; i < 10; i++) {
+                        let category = {
+                            city: items[i][0],
+                            Value: items[i][1]
+                        }
+                        datas.push(category);
+                    }
+                    console.log(datas)
+                    let myColorScale = d3.scaleLinear().domain([1, 120000])
+                        .range(["white", "blue"])
+                    const margin = { top: 0, right: 0, bottom: 0, left: 0 },
+                        width = 550 - margin.left - margin.right,
+                        height = 670 - margin.top - margin.bottom,
+                        innerRadius = 90,
+                        outerRadius = Math.min(width, height) / 2;
+
+                    const svg = d3.select("#review_city_count")
+                        .append("svg")
+                        .attr("width", width + margin.left + margin.right)
+                        .attr("height", height + margin.top + margin.bottom)
+                        .append("g")
+                        .attr("transform", `translate(${width / 2 + margin.left}, ${height / 2 + margin.top})`);
+                    const x = d3.scaleBand()
+                        .range([0, 2 * Math.PI])
+                        .align(0)
+                        .domain(datas.map(d => d.city));
+                    const y = d3.scaleRadial()
+                        .range([innerRadius, outerRadius])
+                        .domain([0, 130000]);
+                    svg.append("g")
+                        .selectAll("path")
+                        .data(datas)
+                        .join("path")
+                        .attr("fill", d => myColorScale(d.Value))
+                        .attr("d", d3.arc()
+                            .innerRadius(innerRadius)
+                            .outerRadius(d => y(d['Value']))
+                            .startAngle(d => x(d.city))
+                            .endAngle(d => x(d.city) + x.bandwidth())
+                            .padAngle(0.01)
+                            .padRadius(innerRadius))
+
+                    svg.append("g")
+                        .attr("class", "svg")
+                        .selectAll("g")
+                        .data(datas)
+                        .join("g")
+                        .attr("text-anchor", function (d) {
+                            return (x(d.city) + x.bandwidth() / 2 + Math.PI) % (2 * Math.PI) < Math.PI ? "end" : "start";
+                        })
+                        .attr("transform", function (d) {
+                            return "rotate(" + ((x(d.city) + x.bandwidth() / 2) * 180 / Math.PI - 90) + ")" + "translate(" + (y(d['Value']) + 10) + ",0)";
+                        })
+                        .append("text")
+                        .text(function (d) {
+                            return (d.city)
+                        })
+                        .attr("transform", function (d) {
+                            return (x(d.city) + x.bandwidth() / 2 + Math.PI) % (2 * Math.PI) < Math.PI ? "rotate(180)" : "rotate(0)";
+                        })
+                        .attr("alignment-baseline", "middle")
+                        .style("fill", "white")
+
+                });
+
+            // Examine whether or not now is a good time to open a new restaurant.
+            d3.json('yelp_review_time_1percent.json').then(
+                (data2) => {
+                    let array = []
+                    for (let i = 0; i < data2.length; i++) {
+                        data2[i].date = data2[i].date.substring(0, 10)
+                        array.push(data2[i].date)
+                    }
+                    const count2 = {};
+                    for (const element of array) {
+                        if (count2[element]) {
+                            count2[element] += 1;
+                        } else {
+                            count2[element] = 1;
+                        }
+                    }
+                    data = [];
+                    for (const [key, value] of Object.entries(count2)) {
+                        data.push({
+                            date: key,
+                            value: value
+                        });
+                    }
+                    const svg_time_series = d3.select("svg#time_series");
+                    const width = svg_time_series.attr("width");
+                    const height = svg_time_series.attr("height");
+                    const margin = { top: 10, right: 10, bottom: 50, left: 50 };
+                    const chartWidth = width - margin.left - margin.right;
+                    const chartHeight = height - margin.top - margin.bottom;
+
+                    let annotations = svg_time_series.append("g").attr("id", "annotations");
+                    let chartArea_time_series = svg_time_series.append("g").attr("id", "points")
+                        .attr("transform", `translate(${margin.left},${margin.top})`);
+
+                    let timeParser = d3.timeParse('%Y-%m-%d');
+                    let colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+                    data.forEach(d => {
+                        d['date'] = timeParser(d["date"]);
+                    });
+                    const dateExtent = d3.extent(data, d => d['date']);
+                    const dateScale = d3.scaleTime().domain(dateExtent).range([0, chartWidth - 10]);
+                    let bottomAxis = d3.axisBottom(dateScale)
+                    let bottomGridlines = d3.axisBottom(dateScale)
+                        .tickSize(-chartHeight - 10)
+                        .tickFormat("")
+                    annotations.append("g")
+                        .attr("class", "x axis")
+                        .attr("transform", `translate(${margin.left},${chartHeight + margin.top + 10})`)
+                        .call(bottomAxis);
+                    annotations.append("g")
+                        .attr("class", "x gridlines")
+                        .attr("transform", `translate(${margin.left},${chartHeight + margin.top + 10})`)
+                        .call(bottomGridlines);
+
+                    const reviewcountExtent = d3.extent(data, d => d['value']);
+                    const reviewNumScale = d3.scaleLinear().domain(reviewcountExtent).range([chartHeight, 0]);
+                    let leftAxis = d3.axisLeft(reviewNumScale)
+                    let leftGridlines = d3.axisLeft(reviewNumScale)
+                        .tickSize(-chartWidth - 10)
+                        .tickFormat("")
+
+                    annotations.append("g")
+                        .attr("class", "y axis")
+                        .attr("transform", `translate(${margin.left},${margin.top})`)
+                        .call(leftAxis)
+                    annotations.append("g")
+                        .attr("class", "y gridlines")
+                        .attr("transform", `translate(${margin.left},${margin.top})`)
+                        .call(leftGridlines);
+                    svg_time_series.append("text")
+                        .attr("class", "x label")
+                        .attr("text-anchor", "end")
+                        .attr("x", width - 100)
+                        .attr("y", height - 6)
+                        .style("fill", "white")
+                        .text("Review Time");
+                    svg_time_series.append("text")
+                        .attr("class", "y label")
+                        .attr("text-anchor", "end")
+                        .attr("y", 8)
+                        .attr("dy", ".100em")
+                        .attr("transform", "rotate(-90)")
+                        .style("fill", "white")
+                        .text("Review Count");
+                    chartArea_time_series.selectAll("circle").data(data)
+                        .join("circle")
+                        .attr("r", 3)
+                        .attr('opacity', 0.9)
+                        .attr("fill", "skyblue")   // using attr here, style would work too
+                        .attr("cx", d => dateScale(d['date']))
+                        .attr("cy", d => reviewNumScale(d['value']));
+                });
+
+        </script>
+    </body>
+
+</html>
